@@ -1,0 +1,123 @@
+diff --git a/libvlc/compile.sh b/libvlc/compile.sh
+index e3a2a1133..3e3c10715 100755
+--- a/libvlc/compile.sh
++++ b/libvlc/compile.sh
+@@ -2,11 +2,13 @@
+ 
+ set -e
+ 
++# TODO: release/debug build, pdb mapped to source path
+ usage()
+ {
+-    echo "Usage: compile <arch> <TargetOS>"
++    echo "Usage: compile <arch> <TargetOS> <PDBs>"
+     echo "archs: i686,x86_64,armv7,aarch64"
+     echo "os: win10"
++    echo "PDBs: yes,no"
+ }
+ 
+ using()
+@@ -64,6 +66,20 @@ case "$2" in
+         ;;
+ esac
+ 
++case "$3" in
++    yes)
++        PDB=ON
++        ;;
++    no)
++        PDB=OFF
++        ;;
++    *)
++        echo "Unknown PDB option"
++        usage
++        exit 1
++        ;;
++esac
++
+ # 1/ libvlc, libvlccore and its plugins
+ TESTED_HASH=45df8a6415
+ if [ ! -d "vlc" ]; then
+@@ -144,10 +160,14 @@ else
+ fi
+ 
+ echo "Building the contribs"
++CONTRIB_BOOTSTRAP_OPTIONS=
++if [ "${PDB}" = "ON" ]; then
++    CONTRIB_BOOTSTRAP_OPTIONS=--enable-pdb
++fi
+ CONTRIB_FOLDER=contrib/winrt-$1-$RUNTIME
+ mkdir -p $CONTRIB_FOLDER
+ cd $CONTRIB_FOLDER
+-../bootstrap --host=${TARGET_TUPLE} --build=$BUILD_ARCH --disable-disc \
++../bootstrap --host=${TARGET_TUPLE} --build=$BUILD_ARCH ${CONTRIB_BOOTSTRAP_OPTIONS} --disable-disc \
+     --disable-sdl \
+     --disable-schroedinger \
+     --disable-vncserver \
+@@ -207,15 +227,23 @@ LDFLAGS="${EXTRA_LDFLAGS}" \
+ CC="${COMPILER}" \
+ CXX="${COMPILERXX}" \
+ ac_cv_search_connect="-lws2_32" \
+-../../configure.sh --host=${TARGET_TUPLE}
++CONFIGURE_OPTIONS=
++if [ "${PDB}" = "ON" ]; then
++    CONFIGURE_OPTIONS=--enable-pdb
++fi
++../../configure.sh --host=${TARGET_TUPLE} ${CONFIGURE_OPTIONS}
+ 
+ echo "Building"
+ make $MAKEFLAGS
+ 
+ echo "Package"
+-make install
++if [ "${PDB}" = "ON" ]; then
++    make package-win-install
++else
++    make install
++fi
+ 
+-rm -rf tmp && mkdir tmp
++rm -rf tmp && mkdir -p tmp/plugins
+ 
+ # Compiler shared DLLs, when using compilers built with --enable-shared
+ # The shared DLLs may not necessarily be in the first LIBRARY_PATH, we
+@@ -223,8 +251,13 @@ rm -rf tmp && mkdir tmp
+ library_path_list=`${TARGET_TUPLE}-g++ -v /dev/null 2>&1 | grep ^LIBRARY_PATH|cut -d= -f2` ;
+ 
+ find _win32/bin -name "*.dll" -exec cp -v {} tmp \;
+-cp -r _win32/include tmp/
+ cp -r _win32/lib/vlc/plugins tmp/
++cp -r _win32/include tmp/
++if [ "${PDB}" = "ON" ]; then
++    find _win32/bin -name "*.pdb" -exec cp -v {} tmp \;
++else
++    find tmp/plugins -name "*.pdb" -exec rm -v {} \;
++fi
+ 
+ find tmp -name "*.la" -exec rm -v {} \;
+ find tmp -name "*.a" -exec rm -v {} \;
+@@ -263,6 +296,9 @@ do
+     fi
+ done
+ rm `find tmp/plugins -name 'lib*plugin.dll' | grep -E "lib(${regexp})_plugin.dll"`
++if [ "${PDB}" = "ON" ]; then
++    rm `find tmp/plugins -name 'lib*plugin.pdb' | grep -E "lib(${regexp})_plugin.pdb"`
++fi
+ 
+ find tmp \( -name "*.dll" -o -name "*.exe" \) -exec ${TARGET_TUPLE}-strip {} \;
+ find tmp \( -name "*.dll" -o -name "*.exe" \) -exec ../../appcontainer.pl {} \;
+@@ -271,9 +307,13 @@ cp lib/.libs/libvlc.dll.a tmp/libvlc.lib
+ cp src/.libs/libvlccore.dll.a tmp/libvlccore.lib
+ 
+ CURRENTDATE="$(date +%Y%m%d-%H%M)"
++ARCHIVE_NAME=vlc-${1}-${2}-${CURRENTDATE}
++if [ "${PDB}" = "ON" ]; then
++    ARCHIVE_NAME=$ARCHIVE_NAME-pdb
++fi
+ 
+ cd tmp
+-7z a ../vlc-${1}-${2}-${CURRENTDATE}.7z *
++7z a ../${ARCHIVE_NAME}.7z *
+ cd ..
+ rm -rf tmp
+ 
