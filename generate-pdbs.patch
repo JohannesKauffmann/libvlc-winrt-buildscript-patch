@@ -1,27 +1,42 @@
 diff --git a/libvlc/compile.sh b/libvlc/compile.sh
-index e3a2a1133..334951490 100755
+index e3a2a1133..e8816476a 100755
 --- a/libvlc/compile.sh
 +++ b/libvlc/compile.sh
-@@ -2,11 +2,13 @@
+@@ -2,11 +2,14 @@
  
  set -e
  
-+# TODO: release/debug build, pdb mapped to source path
++# TODO: pdb mapped to source path
  usage()
  {
 -    echo "Usage: compile <arch> <TargetOS>"
-+    echo "Usage: compile <arch> <TargetOS> <PDBs>"
++    echo "Usage: compile <arch> <TargetOS> <Release/Debug> <PDBs>"
      echo "archs: i686,x86_64,armv7,aarch64"
      echo "os: win10"
++    echo "Release/Debug: release,debug"
 +    echo "PDBs: yes,no"
  }
  
  using()
-@@ -64,6 +66,20 @@ case "$2" in
+@@ -64,6 +67,34 @@ case "$2" in
          ;;
  esac
  
 +case "$3" in
++    release)
++        DEBUG=OFF
++        ;;
++    debug)
++        DEBUG=ON
++        ;;
++    *)
++        echo "Unknown Release/Debug option"
++        usage
++        exit 1
++        ;;
++esac
++
++case "$4" in
 +    yes)
 +        PDB=ON
 +        ;;
@@ -38,14 +53,19 @@ index e3a2a1133..334951490 100755
  # 1/ libvlc, libvlccore and its plugins
  TESTED_HASH=45df8a6415
  if [ ! -d "vlc" ]; then
-@@ -144,10 +160,14 @@ else
+@@ -144,10 +175,19 @@ else
  fi
  
  echo "Building the contribs"
++
 +CONTRIB_BOOTSTRAP_OPTIONS=
 +if [ "${PDB}" = "ON" ]; then
-+    CONTRIB_BOOTSTRAP_OPTIONS=--enable-pdb
++    CONTRIB_BOOTSTRAP_OPTIONS="${CONTRIB_BOOTSTRAP_OPTIONS} --enable-pdb"
 +fi
++if [ "${DEBUG}" = "ON" ]; then
++    CONTRIB_BOOTSTRAP_OPTIONS="${CONTRIB_BOOTSTRAP_OPTIONS} --disable-optim"
++fi
++
  CONTRIB_FOLDER=contrib/winrt-$1-$RUNTIME
  mkdir -p $CONTRIB_FOLDER
  cd $CONTRIB_FOLDER
@@ -54,15 +74,25 @@ index e3a2a1133..334951490 100755
      --disable-sdl \
      --disable-schroedinger \
      --disable-vncserver \
-@@ -207,15 +227,23 @@ LDFLAGS="${EXTRA_LDFLAGS}" \
+@@ -202,20 +242,33 @@ echo "Bootstraping"
+ ../bootstrap
+ 
+ echo "Configuring"
++
++CONFIGURE_OPTIONS=
++if [ "${PDB}" = "ON" ]; then
++    CONFIGURE_OPTIONS="${CONFIGURE_OPTIONS} --enable-pdb"
++fi
++if [ "${DEBUG}" = "ON" ]; then
++    CONFIGURE_OPTIONS="${CONFIGURE_OPTIONS} --enable-debug"
++fi
++
+ CPPFLAGS="${EXTRA_CPPFLAGS}" \
+ LDFLAGS="${EXTRA_LDFLAGS}" \
  CC="${COMPILER}" \
  CXX="${COMPILERXX}" \
  ac_cv_search_connect="-lws2_32" \
 -../../configure.sh --host=${TARGET_TUPLE}
-+CONFIGURE_OPTIONS=
-+if [ "${PDB}" = "ON" ]; then
-+    CONFIGURE_OPTIONS=--enable-pdb
-+fi
 +../../configure.sh --host=${TARGET_TUPLE} ${CONFIGURE_OPTIONS}
  
  echo "Building"
@@ -81,7 +111,7 @@ index e3a2a1133..334951490 100755
  
  # Compiler shared DLLs, when using compilers built with --enable-shared
  # The shared DLLs may not necessarily be in the first LIBRARY_PATH, we
-@@ -223,8 +251,13 @@ rm -rf tmp && mkdir tmp
+@@ -223,8 +276,13 @@ rm -rf tmp && mkdir tmp
  library_path_list=`${TARGET_TUPLE}-g++ -v /dev/null 2>&1 | grep ^LIBRARY_PATH|cut -d= -f2` ;
  
  find _win32/bin -name "*.dll" -exec cp -v {} tmp \;
@@ -96,7 +126,7 @@ index e3a2a1133..334951490 100755
  
  find tmp -name "*.la" -exec rm -v {} \;
  find tmp -name "*.a" -exec rm -v {} \;
-@@ -263,6 +296,9 @@ do
+@@ -263,6 +321,9 @@ do
      fi
  done
  rm `find tmp/plugins -name 'lib*plugin.dll' | grep -E "lib(${regexp})_plugin.dll"`
@@ -106,13 +136,18 @@ index e3a2a1133..334951490 100755
  
  find tmp \( -name "*.dll" -o -name "*.exe" \) -exec ${TARGET_TUPLE}-strip {} \;
  find tmp \( -name "*.dll" -o -name "*.exe" \) -exec ../../appcontainer.pl {} \;
-@@ -271,12 +307,20 @@ cp lib/.libs/libvlc.dll.a tmp/libvlc.lib
+@@ -271,12 +332,25 @@ cp lib/.libs/libvlc.dll.a tmp/libvlc.lib
  cp src/.libs/libvlccore.dll.a tmp/libvlccore.lib
  
  CURRENTDATE="$(date +%Y%m%d-%H%M)"
 +ARCHIVE_NAME=vlc-${1}-${2}-${CURRENTDATE}
++if [ "${DEBUG}" = "ON" ]; then
++    ARCHIVE_NAME="${ARCHIVE_NAME}-debug"
++else
++    ARCHIVE_NAME="${ARCHIVE_NAME}-release"
++fi
 +if [ "${PDB}" = "ON" ]; then
-+    ARCHIVE_NAME=$ARCHIVE_NAME-pdb
++    ARCHIVE_NAME="${ARCHIVE_NAME}-pdb"
 +fi
  
  cd tmp
