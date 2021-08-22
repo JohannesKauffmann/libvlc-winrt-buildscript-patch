@@ -1,5 +1,5 @@
 diff --git a/libvlc/compile.sh b/libvlc/compile.sh
-index e3a2a1133..e8816476a 100755
+index e3a2a1133..78afebbc1 100755
 --- a/libvlc/compile.sh
 +++ b/libvlc/compile.sh
 @@ -2,11 +2,14 @@
@@ -18,7 +18,7 @@ index e3a2a1133..e8816476a 100755
  }
  
  using()
-@@ -64,6 +67,34 @@ case "$2" in
+@@ -64,11 +67,39 @@ case "$2" in
          ;;
  esac
  
@@ -53,6 +53,12 @@ index e3a2a1133..e8816476a 100755
  # 1/ libvlc, libvlccore and its plugins
  TESTED_HASH=45df8a6415
  if [ ! -d "vlc" ]; then
+     echo "VLC source not found, cloning"
+-    git clone http://git.videolan.org/git/vlc/vlc-3.0.git vlc
++    git clone -b 3.0.x https://code.videolan.org/videolan/vlc.git vlc
+     cd vlc
+     git config --global user.email "cone@example.com"
+     git config --local user.name "Cony Cone"
 @@ -144,10 +175,19 @@ else
  fi
  
