@@ -1,5 +1,5 @@
 diff --git a/libvlc/compile.sh b/libvlc/compile.sh
-index e3a2a1133..78afebbc1 100755
+index e3a2a1133..5720504a1 100755
 --- a/libvlc/compile.sh
 +++ b/libvlc/compile.sh
 @@ -2,11 +2,14 @@
@@ -142,7 +142,7 @@ index e3a2a1133..78afebbc1 100755
  
  find tmp \( -name "*.dll" -o -name "*.exe" \) -exec ${TARGET_TUPLE}-strip {} \;
  find tmp \( -name "*.dll" -o -name "*.exe" \) -exec ../../appcontainer.pl {} \;
-@@ -271,12 +332,25 @@ cp lib/.libs/libvlc.dll.a tmp/libvlc.lib
+@@ -271,9 +332,18 @@ cp lib/.libs/libvlc.dll.a tmp/libvlc.lib
  cp src/.libs/libvlccore.dll.a tmp/libvlccore.lib
  
  CURRENTDATE="$(date +%Y%m%d-%H%M)"
@@ -162,10 +162,3 @@ index e3a2a1133..78afebbc1 100755
  cd ..
  rm -rf tmp
  
-+# Remove contrib build artifacts
-+rm -rf ../$CONTRIB_FOLDER
-+rm -rf ../contrib/$TARGET_TUPLE
-+
- else
-     usage
- fi
