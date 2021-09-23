@@ -1,5 +1,5 @@
 diff --git a/libvlc/compile.sh b/libvlc/compile.sh
-index e3a2a1133..5720504a1 100755
+index e3a2a1133..c2571a67e 100755
 --- a/libvlc/compile.sh
 +++ b/libvlc/compile.sh
 @@ -2,11 +2,14 @@
@@ -59,14 +59,21 @@ index e3a2a1133..5720504a1 100755
      cd vlc
      git config --global user.email "cone@example.com"
      git config --local user.name "Cony Cone"
-@@ -144,10 +175,19 @@ else
+@@ -144,10 +175,26 @@ else
  fi
  
  echo "Building the contribs"
 +
++VLC_ROOT_PATH="$( cd "$(dirname "$0")" ; pwd -P )"
++
 +CONTRIB_BOOTSTRAP_OPTIONS=
 +if [ "${PDB}" = "ON" ]; then
 +    CONTRIB_BOOTSTRAP_OPTIONS="${CONTRIB_BOOTSTRAP_OPTIONS} --enable-pdb"
++    PDB_MAP="c:/vlc"
++    CFLAGS="$CFLAGS -fdebug-prefix-map='$VLC_ROOT_PATH'='$PDB_MAP'"
++    CXXFLAGS="$CXXFLAGS -fdebug-prefix-map='$VLC_ROOT_PATH'='$PDB_MAP'"
++    export CFLAGS
++    export CXXFLAGS
 +fi
 +if [ "${DEBUG}" = "ON" ]; then
 +    CONTRIB_BOOTSTRAP_OPTIONS="${CONTRIB_BOOTSTRAP_OPTIONS} --disable-optim"
@@ -80,7 +87,7 @@ index e3a2a1133..5720504a1 100755
      --disable-sdl \
      --disable-schroedinger \
      --disable-vncserver \
-@@ -202,20 +242,33 @@ echo "Bootstraping"
+@@ -202,20 +249,33 @@ echo "Bootstraping"
  ../bootstrap
  
  echo "Configuring"
@@ -117,7 +124,7 @@ index e3a2a1133..5720504a1 100755
  
  # Compiler shared DLLs, when using compilers built with --enable-shared
  # The shared DLLs may not necessarily be in the first LIBRARY_PATH, we
-@@ -223,8 +276,13 @@ rm -rf tmp && mkdir tmp
+@@ -223,8 +283,13 @@ rm -rf tmp && mkdir tmp
  library_path_list=`${TARGET_TUPLE}-g++ -v /dev/null 2>&1 | grep ^LIBRARY_PATH|cut -d= -f2` ;
  
  find _win32/bin -name "*.dll" -exec cp -v {} tmp \;
@@ -132,7 +139,7 @@ index e3a2a1133..5720504a1 100755
  
  find tmp -name "*.la" -exec rm -v {} \;
  find tmp -name "*.a" -exec rm -v {} \;
-@@ -263,6 +321,9 @@ do
+@@ -263,6 +328,9 @@ do
      fi
  done
  rm `find tmp/plugins -name 'lib*plugin.dll' | grep -E "lib(${regexp})_plugin.dll"`
@@ -142,7 +149,7 @@ index e3a2a1133..5720504a1 100755
  
  find tmp \( -name "*.dll" -o -name "*.exe" \) -exec ${TARGET_TUPLE}-strip {} \;
  find tmp \( -name "*.dll" -o -name "*.exe" \) -exec ../../appcontainer.pl {} \;
-@@ -271,9 +332,18 @@ cp lib/.libs/libvlc.dll.a tmp/libvlc.lib
+@@ -271,9 +339,18 @@ cp lib/.libs/libvlc.dll.a tmp/libvlc.lib
  cp src/.libs/libvlccore.dll.a tmp/libvlccore.lib
  
  CURRENTDATE="$(date +%Y%m%d-%H%M)"
